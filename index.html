@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Hasil Survei</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%); }
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-5px); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
+        .loading-spinner { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .chart-glow { box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+        .animated-gradient { background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab); background-size: 400% 400%; animation: gradient 15s ease infinite; }
+        @keyframes gradient { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        
+        /* Modal styles */
+        .modal-backdrop { backdrop-filter: blur(10px); }
+        .modal-enter { animation: modalEnter 0.3s ease-out; }
+        .modal-exit { animation: modalExit 0.3s ease-in; }
+        @keyframes modalEnter { from { opacity: 0; transform: scale(0.9) translateY(-20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes modalExit { from { opacity: 1; transform: scale(1) translateY(0); } to { opacity: 0; transform: scale(0.9) translateY(-20px); } }
+        
+        /* Form styles */
+        .form-input:focus { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        .radio-custom { appearance: none; width: 20px; height: 20px; border: 2px solid #d1d5db; border-radius: 50%; position: relative; }
+        .radio-custom:checked { border-color: #3b82f6; background-color: #3b82f6; }
+        .radio-custom:checked::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 8px; height: 8px; background: white; border-radius: 50%; }
+        
+        /* Mobile-specific styles */
+        @media (max-width: 640px) {
+            .card-hover:hover { transform: none; }
+            .container { max-width: 100%; }
+        }
+        
+        /* Ensure charts are responsive */
+        canvas { 
+            max-width: 100% !important; 
+            height: auto !important; 
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="relative overflow-hidden">
+        <!-- Animated Background -->
+        <div class="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500">
+            <div class="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-transparent to-purple-600/20"></div>
+            <!-- Floating Elements -->
+            <div class="absolute top-10 left-10 w-20 h-20 bg-white/10 rounded-full blur-xl animate-pulse"></div>
+            <div class="absolute top-32 right-20 w-16 h-16 bg-pink-300/20 rounded-full blur-lg animate-bounce"></div>
+            <div class="absolute bottom-20 left-1/4 w-12 h-12 bg-blue-300/15 rounded-full blur-md animate-pulse"></div>
+            <div class="absolute bottom-10 right-1/3 w-24 h-24 bg-purple-300/10 rounded-full blur-xl animate-bounce"></div>
+        </div>
+        
+        <!-- Content -->
+        <div class="relative z-10 container mx-auto px-4 sm:px-6 py-8 sm:py-12 lg:py-16">
+            <div class="text-center">
+                <!-- Main Title with Icon -->
+                <div class="mb-6">
+                    <div class="inline-flex items-center justify-center w-32 h-32 sm:w-36 sm:h-36 lg:w-44 lg:h-44 bg-white/20 backdrop-blur-sm rounded-2xl shadow-2xl mb-4 transform hover:scale-105 transition-all duration-300">
+                        <img src="https://iili.io/K9rv7pt.png" alt="Logo IKM" class="w-24 h-24 sm:w-28 sm:h-28 lg:w-36 lg:h-36 object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <svg class="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 text-white hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                    </div>
+                    <h1 class="text-3xl sm:text-4xl lg:text-6xl font-bold text-white leading-tight mb-2 tracking-tight">
+                        <span class="bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
+                            Dashboard Survei
+                        </span>
+                    </h1>
+                    <div class="w-24 h-1 bg-gradient-to-r from-pink-400 to-blue-400 mx-auto rounded-full mb-4"></div>
+                </div>
+                
+                <!-- Subtitle -->
+                <p class="text-lg sm:text-xl lg:text-2xl text-blue-100 font-medium mb-2 max-w-2xl mx-auto">
+                    Analisis Real-time Data Survei Indeks Kepuasan Masyarakat
+                </p>
+                <p class="text-sm sm:text-base lg:text-lg text-blue-200 font-light mb-8 max-w-xl mx-auto">
+                    @Dinas Kependudukan dan Pencatatan Sipil
+                    <br class="sm:hidden">
+                    <span class="hidden sm:inline"> • </span>Kabupaten Kepulauan Tanimbar
+                </p>
+                
+                <!-- Stats Row -->
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 mb-8">
+                    <!-- Live Status -->
+                    <div class="flex items-center bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg">
+                        <div class="w-3 h-3 bg-green-400 rounded-full animate-pulse mr-2"></div>
+                        <span class="text-sm font-semibold text-green-100">Status: Live</span>
+                    </div>
+                    
+                    <!-- Update Time -->
+                    <div class="flex items-center bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg">
+                        <svg class="w-4 h-4 text-blue-200 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span class="text-sm font-medium text-blue-100">
+                            Update: <span id="lastUpdate" class="font-semibold">Loading...</span>
+                        </span>
+                    </div>
+                    
+                    <!-- Year Badge -->
+                    <div class="bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 px-4 py-2 rounded-full shadow-lg">
+                        <span class="text-sm font-bold">2025</span>
+                    </div>
+                </div>
+                
+                <!-- CTA Buttons -->
+                <div class="flex flex-col sm:flex-row justify-center gap-4">
+                    <button onclick="refreshData()" class="group bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white border-2 border-white/30 hover:border-white/50 px-6 py-3 rounded-full font-semibold shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center gap-2 justify-center">
+                        <svg class="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        <span>Perbarui Data</span>
+                    </button>
+                    
+                    <a href="https://docs.google.com/forms/d/e/1FAIpQLSdOTcY4PDExdlqPzwnY9Sima8aGyNIE88E1ngxqKR1-E4OMpA/viewform?usp=header" target="_blank" class="group bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-2 border-green-400/50 hover:border-green-300/70 px-6 py-3 rounded-full font-semibold shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center gap-2 justify-center">
+                        <svg class="w-5 h-5 group-hover:scale-110 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <span>Isi Survey</span>
+                        <svg class="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                        </svg>
+                    </a>
+                    
+
+                    
+                    <button onclick="showUploadModal()" class="group bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white border-2 border-purple-400/50 hover:border-purple-300/70 px-6 py-3 rounded-full font-semibold shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center gap-2 justify-center">
+                        <svg class="w-5 h-5 group-hover:scale-110 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                        </svg>
+                        <span>Download File</span>
+                        <svg class="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bottom Wave -->
+        <div class="absolute bottom-0 left-0 right-0">
+            <svg class="w-full h-6 sm:h-8 lg:h-12 text-gray-50" fill="currentColor" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                <path d="M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z" opacity=".25"></path>
+                <path d="M0,0V15.81C13,36.92,27.64,56.86,47.69,72.05,99.41,111.27,165,111,224.58,91.58c31.15-10.15,60.09-26.07,89.67-39.8,40.92-19,84.73-46,130.83-49.67,36.26-2.85,70.9,9.42,98.6,31.56,31.77,25.39,62.32,62,103.63,73,40.44,10.79,81.35-6.69,119.13-24.28s75.16-39,116.92-43.05c59.73-5.85,113.28,22.88,168.9,38.84,30.2,8.66,59,6.17,87.09-7.5,22.43-10.89,48-26.93,60.65-49.24V0Z" opacity=".5"></path>
+                <path d="M0,0V5.63C149.93,59,314.09,71.32,475.83,42.57c43-7.64,84.23-20.12,127.61-26.46,59-8.63,112.48,12.24,165.56,35.4C827.93,77.22,886,95.24,951.2,90c86.53-7,172.46-45.71,248.8-84.81V0Z"></path>
+            </svg>
+        </div>
+    </header>
+
+
+
+    <!-- Loading State -->
+    <div id="loadingState" class="flex items-center justify-center py-20">
+        <div class="text-center">
+            <div class="loading-spinner w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full mx-auto mb-4"></div>
+            <p class="text-gray-600">Memuat data survei...</p>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="dashboard" class="hidden container mx-auto px-4 sm:px-6 py-4 sm:py-8">
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+            <div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl shadow-md p-4 sm:p-6 card-hover">
+                <div class="flex items-center">
+                    <div class="p-2 sm:p-3 rounded-full bg-white bg-opacity-20">
+                        <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3 sm:ml-4">
+                        <p class="text-xs sm:text-sm font-medium text-blue-100">Total Responden</p>
+                        <p id="totalResponses" class="text-xl sm:text-2xl font-bold">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl shadow-md p-4 sm:p-6 card-hover">
+                <div class="flex items-center">
+                    <div class="p-2 sm:p-3 rounded-full bg-white bg-opacity-20">
+                        <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3 sm:ml-4">
+                        <p class="text-xs sm:text-sm font-medium text-green-100">Kolom Data</p>
+                        <p id="totalColumns" class="text-xl sm:text-2xl font-bold">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl shadow-md p-4 sm:p-6 card-hover">
+                <div class="flex items-center">
+                    <div class="p-2 sm:p-3 rounded-full bg-white bg-opacity-20">
+                        <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3 sm:ml-4">
+                        <p class="text-xs sm:text-sm font-medium text-purple-100">Status</p>
+                        <p class="text-xl sm:text-2xl font-bold">Aktif</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-xl shadow-md p-4 sm:p-6 card-hover">
+                <div class="flex items-center">
+                    <div class="p-2 sm:p-3 rounded-full bg-white bg-opacity-20">
+                        <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3 sm:ml-4">
+                        <p class="text-xs sm:text-sm font-medium text-orange-100">Tingkat Respon</p>
+                        <p id="responseRate" class="text-xl sm:text-2xl font-bold">100%</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="bg-white rounded-xl shadow-md p-4 sm:p-6 mb-6 sm:mb-8 fade-in">
+            <div class="flex flex-col gap-4">
+                <!-- Filter Controls Row -->
+                <div class="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 sm:gap-4">
+                    <h3 class="text-base sm:text-lg font-semibold text-gray-800">Filter Periode:</h3>
+                    <select id="periodFilter" onchange="applyFilter()" class="w-full sm:w-auto bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5">
+                        <option value="all">Semua Periode</option>
+                        <option value="today">Hari Ini</option>
+                        <option value="week">7 Hari Terakhir</option>
+                        <option value="month">30 Hari Terakhir</option>
+                        <option value="custom">Periode Kustom</option>
+                    </select>
+                    <div id="customDateRange" class="hidden w-full sm:w-auto flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                        <input type="date" id="startDate" class="w-full sm:w-auto bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5">
+                        <span class="text-gray-500 text-sm">s/d</span>
+                        <input type="date" id="endDate" class="w-full sm:w-auto bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5">
+                        <button onclick="applyCustomFilter()" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">Terapkan</button>
+                    </div>
+                </div>
+                
+                <!-- Filter Status Row -->
+                <div class="flex items-center gap-2 pt-3 border-t border-gray-200">
+                    <div class="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                    <span id="filterStatus" class="text-sm text-gray-600 font-medium">Menampilkan semua data</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Service Quality Progress Charts -->
+        <div id="serviceQualityCharts" class="grid grid-cols-1 gap-6 sm:gap-8 mb-6 sm:mb-8">
+            <!-- Charts will be generated dynamically for service quality questions -->
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-6 sm:py-8 mt-8 sm:mt-12">
+        <div class="container mx-auto px-4 sm:px-6 text-center">
+            <div class="flex items-center justify-center mb-3 sm:mb-4">
+                <svg class="w-6 h-6 sm:w-8 sm:h-8 text-blue-400 mr-2 sm:mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <h3 class="text-lg sm:text-xl font-semibold">Survey Dashboard IKM</h3>
+            </div>
+            <p class="text-gray-300 mb-2 text-sm sm:text-base">Dinas Kependudukan dan Pencatatan Sipil Kab. Kepulauan Tanimbar</p>
+            <div class="flex items-center justify-center text-xs sm:text-sm text-gray-400">
+                <svg class="w-3 h-3 sm:w-4 sm:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span>Data diperbarui secara real-time</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Error State -->
+    <div id="errorState" class="hidden container mx-auto px-4 sm:px-6 py-12 sm:py-20 text-center">
+        <div class="max-w-md mx-auto">
+            <div class="text-4xl sm:text-6xl mb-4">⚠️</div>
+            <h2 class="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Gagal Memuat Data</h2>
+            <p class="text-sm sm:text-base text-gray-600 mb-6">Terjadi kesalahan saat mengambil data dari Google Spreadsheet. Silakan coba lagi.</p>
+            <button onclick="loadData()" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium text-sm sm:text-base">
+                Coba Lagi
+            </button>
+        </div>
+    </div>
+
+    <!-- Password Modal for Upload -->
+    <div id="uploadModal" class="hidden fixed inset-0 bg-black bg-opacity-50 modal-backdrop z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full modal-enter">
+            <div class="p-6">
+                <!-- Header -->
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mr-4">
+                            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-900">Akses Unggah File</h3>
+                            <p class="text-sm text-gray-600">Masukkan password untuk mengakses</p>
+                        </div>
+                    </div>
+                    <button onclick="closeUploadModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Password Input -->
+                <div class="mb-6">
+                    <label for="uploadPassword" class="block text-sm font-semibold text-gray-700 mb-2">
+                        🔐 Password:
+                    </label>
+                    <input 
+                        type="password" 
+                        id="uploadPassword" 
+                        placeholder="Masukkan password akses"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 form-input text-sm"
+                        onkeypress="if(event.key==='Enter') verifyAndUpload()"
+                    >
+                    <div id="uploadPasswordError" class="hidden mt-2 text-sm text-red-600 flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Password salah. Silakan coba lagi.
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-3">
+                    <button 
+                        onclick="closeUploadModal()" 
+                        class="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+                    >
+                        Batal
+                    </button>
+                    <button 
+                        onclick="verifyAndUpload()" 
+                        class="flex-1 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                        </svg>
+                        Akses
+                    </button>
+                </div>
+
+                <!-- Info -->
+                <div class="mt-4 p-3 bg-purple-50 rounded-lg">
+                    <div class="flex items-start">
+                        <svg class="w-5 h-5 text-purple-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <div class="text-xs text-purple-800">
+                            <p class="font-semibold mb-1">Informasi Akses:</p>
+                            <p>Setelah verifikasi password, Anda akan diarahkan ke Google Spreadsheet untuk mengunggah atau mengedit data survei.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let surveyData = [];
+        let filteredData = [];
+        let allCharts = {};
+        let currentHeaders = [];
+
+        // CSV URL for reading data - Your specific Google Sheets link
+        const SPREADSHEET_ID = '1xMhuQ3rND7kpVBuRwnx9H-tlPc--u9rKEARcCVvT-g0';
+        const CSV_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=0`;
+
+
+
+        // Parse CSV data with better handling for quoted fields
+        function parseCSV(text) {
+            const lines = text.split('\n').filter(line => line.trim());
+            if (lines.length === 0) return { headers: [], data: [] };
+            
+            // Parse CSV with proper quote handling
+            function parseCSVLine(line) {
+                const result = [];
+                let current = '';
+                let inQuotes = false;
+                
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    
+                    if (char === '"') {
+                        if (inQuotes && line[i + 1] === '"') {
+                            current += '"';
+                            i++; // Skip next quote
+                        } else {
+                            inQuotes = !inQuotes;
+                        }
+                    } else if (char === ',' && !inQuotes) {
+                        result.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                result.push(current.trim());
+                return result;
+            }
+            
+            const headers = parseCSVLine(lines[0]);
+            const data = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim()) {
+                    const values = parseCSVLine(lines[i]);
+                    const row = {};
+                    headers.forEach((header, index) => {
+                        row[header] = values[index] || '';
+                    });
+                    data.push(row);
+                }
+            }
+            
+            return { headers, data };
+        }
+
+        // Load data from Google Sheets
+        async function loadData() {
+            try {
+                showLoading();
+                
+                // Try multiple URL formats for Google Sheets
+                const urls = [
+                    `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=0`,
+                    `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv`,
+                    `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=Sheet1`,
+                    `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv`
+                ];
+                
+                let success = false;
+                let lastError = null;
+                
+                for (const url of urls) {
+                    try {
+                        console.log('Trying URL:', url);
+                        const response = await fetch(url);
+                        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        
+                        const csvText = await response.text();
+                        console.log('CSV Response length:', csvText.length);
+                        
+                        if (csvText.length < 10) {
+                            throw new Error('CSV data too short, might be empty');
+                        }
+                        
+                        const { headers, data } = parseCSV(csvText);
+                        console.log('Parsed headers:', headers);
+                        console.log('Parsed data rows:', data.length);
+                        
+                        if (headers.length === 0) {
+                            throw new Error('No headers found in CSV');
+                        }
+                        
+                        surveyData = data;
+                        updateDashboard(headers, data);
+                        hideLoading();
+                        success = true;
+                        break;
+                        
+                    } catch (error) {
+                        console.log(`Failed with URL ${url}:`, error.message);
+                        lastError = error;
+                        continue;
+                    }
+                }
+                
+                if (!success) {
+                    throw lastError || new Error('All URL attempts failed');
+                }
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                showError();
+            }
+        }
+        
+
+
+        // Update dashboard with data
+        function updateDashboard(headers, data) {
+            currentHeaders = headers;
+            filteredData = data;
+            
+            // Update stats
+            document.getElementById('totalResponses').textContent = data.length;
+            document.getElementById('totalColumns').textContent = headers.length;
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleString('id-ID');
+            
+            // Update filter status if not already set
+            const filterStatus = document.getElementById('filterStatus');
+            if (filterStatus && filterStatus.textContent === 'Menampilkan semua data') {
+                filterStatus.textContent = `Menampilkan semua data (${data.length} record)`;
+            }
+            
+            // Generate service quality charts
+            generateServiceQualityCharts(headers, data);
+        }
+
+        // Generate charts for service quality questions
+        function generateServiceQualityCharts(headers, data) {
+            const serviceQualityContainer = document.getElementById('serviceQualityCharts');
+            serviceQualityContainer.innerHTML = '';
+
+            // Define exact service quality questions from your survey with chart types and short titles
+            const serviceQuestions = [
+                { 
+                    question: 'Bagaimana pendapat Saudara tentang kesesuaian persyaratan pelayanan dengan jenis pelayanannya', 
+                    shortTitle: 'Kesesuaian Persyaratan Pelayanan',
+                    type: 'bar' 
+                },
+                { 
+                    question: 'Bagaimana pemahaman Saudara tentang kemudahan prosedur pelayanan di unit ini', 
+                    shortTitle: 'Kemudahan Prosedur Pelayanan',
+                    type: 'pie' 
+                },
+                { 
+                    question: 'Bagaimana pendapat Saudara tentang kecepatan waktu dalam memberikan pelayanan', 
+                    shortTitle: 'Kecepatan Waktu Pelayanan',
+                    type: 'bar' 
+                },
+                { 
+                    question: 'Bagaimana pendapat Saudara tentang kewajaran biaya/tarif dalam pelayanan', 
+                    shortTitle: 'Kewajaran Biaya/Tarif Pelayanan',
+                    type: 'pie' 
+                },
+                { 
+                    question: 'Bagaimana pendapat Saudara tentang kesesuaian produk pelayanan antara yang tercantum dalam standar pelayanan dengan hasil yang diberikan', 
+                    shortTitle: 'Kesesuaian Produk Pelayanan',
+                    type: 'bar' 
+                },
+                { 
+                    question: 'Bagaimana pendapat Saudara tentang kompetensi / kemampuan petugas dalam pelayanan', 
+                    shortTitle: 'Kompetensi Petugas Pelayanan',
+                    type: 'pie' 
+                },
+                { 
+                    question: 'Bagaimana pendapat saudara perilaku petugas dalam pelayanan terkait kesopanan dan keramahan', 
+                    shortTitle: 'Perilaku Petugas (Kesopanan & Keramahan)',
+                    type: 'bar' 
+                },
+                { 
+                    question: 'Bagaimana pendapat Saudara tentang kualitas sarana dan prasarana', 
+                    shortTitle: 'Kualitas Sarana dan Prasarana',
+                    type: 'pie' 
+                },
+                { 
+                    question: 'Bagaimana menurut Saudara tentang transparansi pelayanan di unit ini', 
+                    shortTitle: 'Transparansi Pelayanan',
+                    type: 'bar' 
+                },
+                { 
+                    question: 'Bagaimana pendapat Saudara tentang penanganan pengaduan pengguna layanan', 
+                    shortTitle: 'Penanganan Pengaduan Layanan',
+                    type: 'pie' 
+                },
+                { 
+                    question: 'Bagaimana integritas petugas pelayanan di unit ini', 
+                    shortTitle: 'Integritas Petugas Pelayanan',
+                    type: 'bar' 
+                }
+            ];
+
+            // Find matching headers for service questions with better matching algorithm
+            const matchingHeaders = [];
+            serviceQuestions.forEach(questionObj => {
+                // Try multiple matching strategies
+                let matchingHeader = null;
+                
+                // Strategy 1: Exact match
+                matchingHeader = headers.find(header => 
+                    header.toLowerCase().trim() === questionObj.question.toLowerCase().trim()
+                );
+                
+                // Strategy 2: Contains key phrases
+                if (!matchingHeader) {
+                    const keyPhrases = [
+                        'kesesuaian persyaratan',
+                        'kemudahan prosedur', 
+                        'kecepatan waktu',
+                        'kewajaran biaya',
+                        'kesesuaian produk',
+                        'kompetensi',
+                        'perilaku petugas',
+                        'kualitas sarana',
+                        'transparansi',
+                        'penanganan pengaduan',
+                        'integritas'
+                    ];
+                    
+                    for (const phrase of keyPhrases) {
+                        if (questionObj.question.toLowerCase().includes(phrase)) {
+                            matchingHeader = headers.find(header => 
+                                header.toLowerCase().includes(phrase)
+                            );
+                            if (matchingHeader) break;
+                        }
+                    }
+                }
+                
+                // Strategy 3: Partial word matching
+                if (!matchingHeader) {
+                    const questionWords = questionObj.question.toLowerCase().split(' ').filter(word => word.length > 4);
+                    matchingHeader = headers.find(header => {
+                        const headerLower = header.toLowerCase();
+                        return questionWords.some(word => headerLower.includes(word));
+                    });
+                }
+                
+                if (matchingHeader) {
+                    matchingHeaders.push({ 
+                        header: matchingHeader, 
+                        shortTitle: questionObj.shortTitle,
+                        type: questionObj.type 
+                    });
+                }
+            });
+
+            // If no exact matches found, create charts for all survey questions anyway
+            const finalHeaders = matchingHeaders.length > 0 ? matchingHeaders : 
+                serviceQuestions.map((questionObj, index) => ({ 
+                    header: questionObj.question, 
+                    shortTitle: questionObj.shortTitle,
+                    type: questionObj.type,
+                    isPlaceholder: true
+                }));
+
+            // Define attractive color palettes for different chart types
+            const barColors = [
+                ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'],
+                ['#6C5CE7', '#A29BFE', '#FD79A8', '#FDCB6E', '#E17055'],
+                ['#00B894', '#00CEC9', '#0984E3', '#6C5CE7', '#A29BFE'],
+                ['#E84393', '#FD79A8', '#FDCB6E', '#E17055', '#D63031']
+            ];
+
+            const pieColors = [
+                ['#FF7675', '#74B9FF', '#81ECEC', '#00B894', '#FDCB6E', '#E17055'],
+                ['#A29BFE', '#6C5CE7', '#FD79A8', '#E84393', '#00CEC9', '#55A3FF'],
+                ['#00B894', '#55EFC4', '#81ECEC', '#74B9FF', '#0984E3', '#6C5CE7'],
+                ['#FDCB6E', '#E17055', '#D63031', '#E84393', '#FD79A8', '#FF7675']
+            ];
+
+            finalHeaders.forEach((headerObj, index) => {
+                const { header, shortTitle, type, isPlaceholder } = headerObj;
+                
+                // Create chart container with gradient background
+                const chartContainer = document.createElement('div');
+                const gradientClass = index % 4 === 0 ? 'from-blue-50 to-indigo-100' :
+                                    index % 4 === 1 ? 'from-purple-50 to-pink-100' :
+                                    index % 4 === 2 ? 'from-green-50 to-teal-100' :
+                                    'from-orange-50 to-red-100';
+                
+                chartContainer.className = `bg-gradient-to-br ${gradientClass} rounded-xl shadow-lg p-6 card-hover fade-in chart-glow`;
+                
+                // Generate chart data
+                const distribution = {};
+                let totalResponses = 0;
+                
+                // Handle both real data and placeholder scenarios
+                if (isPlaceholder) {
+                    // Create placeholder data structure for missing survey questions
+                    distribution['Belum ada data'] = 1;
+                    totalResponses = 1;
+                } else {
+                    data.forEach(row => {
+                        const value = row[header] || 'Tidak dijawab';
+                        distribution[value] = (distribution[value] || 0) + 1;
+                        totalResponses++;
+                    });
+                }
+
+                // Calculate percentages and create summary
+                const summaryData = Object.entries(distribution)
+                    .map(([key, value]) => ({
+                        label: key,
+                        count: value,
+                        percentage: ((value / totalResponses) * 100).toFixed(1)
+                    }))
+                    .sort((a, b) => b.count - a.count);
+
+                // Create summary HTML with enhanced styling
+                const summaryHTML = summaryData.map((item, idx) => 
+                    `<div class="flex justify-between items-center py-3 px-4 rounded-lg ${idx % 2 === 0 ? 'bg-white bg-opacity-50' : 'bg-white bg-opacity-30'} mb-2">
+                        <span class="text-xs sm:text-sm text-gray-700 flex-1 pr-2 leading-tight font-medium">${item.label}</span>
+                        <div class="text-right flex-shrink-0">
+                            <span class="font-bold text-gray-900 text-sm sm:text-base">${item.count}</span>
+                            <span class="text-xs text-gray-600 ml-1 font-semibold">(${item.percentage}%)</span>
+                        </div>
+                    </div>`
+                ).join('');
+
+                const chartTypeIcon = type === 'bar' ? '📊' : '🥧';
+                const chartTypeName = type === 'bar' ? 'Bar Chart' : 'Pie Chart';
+                const displayTitle = shortTitle || header;
+                const statusBadge = isPlaceholder ? 
+                    '<span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full font-semibold ml-2">Menunggu Data</span>' : 
+                    `<span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full font-semibold ml-2">Data Tersedia</span>`;
+
+                chartContainer.innerHTML = `
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex-1">
+                            <h3 class="text-base sm:text-lg font-bold text-gray-800 leading-tight">${chartTypeIcon} ${displayTitle}</h3>
+                            ${statusBadge}
+                        </div>
+                        <span class="text-xs bg-white bg-opacity-70 px-2 py-1 rounded-full font-semibold text-gray-600">${chartTypeName}</span>
+                    </div>
+                    <div class="grid grid-cols-1 gap-4 sm:gap-6">
+                        <div class="relative h-48 sm:h-64 bg-white bg-opacity-30 rounded-lg p-2">
+                            <canvas id="service-${index}"></canvas>
+                        </div>
+                        <div class="space-y-2">
+                            <h4 class="text-sm sm:text-base font-bold text-gray-700 mb-2 sm:mb-3">📈 Detail Respons:</h4>
+                            <div class="max-h-48 overflow-y-auto space-y-1">
+                                ${summaryHTML}
+                            </div>
+                            <div class="mt-3 sm:mt-4 p-3 bg-white bg-opacity-60 rounded-lg border-l-4 border-blue-500">
+                                <div class="text-xs sm:text-sm font-bold text-blue-800">🎯 Total Responden: ${totalResponses}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                serviceQualityContainer.appendChild(chartContainer);
+
+                // Create chart with specified type and colors
+                const ctx = document.getElementById(`service-${index}`).getContext('2d');
+                const colors = type === 'bar' ? barColors[index % barColors.length] : pieColors[index % pieColors.length];
+
+                // Destroy existing chart if it exists
+                if (allCharts[`service-${index}`]) {
+                    allCharts[`service-${index}`].destroy();
+                }
+
+                allCharts[`service-${index}`] = new Chart(ctx, {
+                    type: type,
+                    data: {
+                        labels: Object.keys(distribution),
+                        datasets: [{
+                            label: 'Jumlah Respons',
+                            data: Object.values(distribution),
+                            backgroundColor: colors,
+                            borderColor: type === 'bar' ? colors.map(color => color + 'CC') : '#ffffff',
+                            borderWidth: type === 'bar' ? 2 : 3,
+                            hoverBackgroundColor: colors.map(color => color + 'DD'),
+                            hoverBorderColor: type === 'bar' ? colors : '#ffffff',
+                            hoverBorderWidth: type === 'bar' ? 3 : 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: type === 'pie' ? 'bottom' : 'top',
+                                display: type === 'pie',
+                                labels: {
+                                    padding: 15,
+                                    usePointStyle: true,
+                                    font: { size: 11, weight: 'bold' },
+                                    color: '#374151'
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#ffffff',
+                                bodyColor: '#ffffff',
+                                borderColor: '#ffffff',
+                                borderWidth: 1,
+                                callbacks: {
+                                    label: function(context) {
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = ((context.raw / total) * 100).toFixed(1);
+                                        return `${context.label}: ${context.raw} responden (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: type === 'bar' ? {
+                            y: {
+                                beginAtZero: true,
+                                grid: { 
+                                    color: 'rgba(0, 0, 0, 0.1)',
+                                    drawBorder: false
+                                },
+                                ticks: { 
+                                    font: { size: 11, weight: 'bold' },
+                                    stepSize: 1,
+                                    color: '#374151'
+                                }
+                            },
+                            x: {
+                                grid: { 
+                                    color: 'rgba(0, 0, 0, 0.1)',
+                                    drawBorder: false
+                                },
+                                ticks: { 
+                                    font: { size: 10, weight: 'bold' },
+                                    maxRotation: 45,
+                                    color: '#374151'
+                                }
+                            }
+                        } : {},
+                        animation: {
+                            duration: 1000,
+                            easing: 'easeInOutQuart'
+                        }
+                    }
+                });
+            });
+        }
+
+        // UI State Management
+        function showLoading() {
+            document.getElementById('loadingState').classList.remove('hidden');
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('errorState').classList.add('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            document.getElementById('errorState').classList.add('hidden');
+        }
+
+        function showError() {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('errorState').classList.remove('hidden');
+        }
+
+        // Enhanced timestamp parser with comprehensive format support
+        function parseTimestamp(timestamp) {
+            if (!timestamp || timestamp.trim() === '') {
+                console.log('Empty timestamp provided');
+                return null;
+            }
+            
+            const originalTimestamp = timestamp;
+            timestamp = timestamp.trim();
+            console.log('Parsing timestamp:', timestamp);
+            
+            // Comprehensive date formats for Google Forms and other sources
+            const formats = [
+                // Google Forms Indonesia: "25/12/2024 14:30:45"
+                {
+                    name: 'DD/MM/YYYY HH:mm:ss',
+                    regex: /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})$/,
+                    parser: (match) => {
+                        let [, day, month, year, hour, minute, second] = match;
+                        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute), parseInt(second));
+                    }
+                },
+                // Google Forms US: "12/25/2024 14:30:45" or "12/25/2024, 2:30:45 PM"
+                {
+                    name: 'MM/DD/YYYY HH:mm:ss',
+                    regex: /^(\d{1,2})\/(\d{1,2})\/(\d{4})[,\s]+(\d{1,2}):(\d{2}):(\d{2})\s*(AM|PM)?/i,
+                    parser: (match) => {
+                        let [, month, day, year, hour, minute, second, ampm] = match;
+                        hour = parseInt(hour);
+                        if (ampm) {
+                            if (ampm.toUpperCase() === 'PM' && hour !== 12) hour += 12;
+                            if (ampm.toUpperCase() === 'AM' && hour === 12) hour = 0;
+                        }
+                        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), hour, parseInt(minute), parseInt(second));
+                    }
+                },
+                // ISO format: "2024-12-25 14:30:45"
+                {
+                    name: 'YYYY-MM-DD HH:mm:ss',
+                    regex: /^(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{2}):(\d{2})$/,
+                    parser: (match) => {
+                        let [, year, month, day, hour, minute, second] = match;
+                        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute), parseInt(second));
+                    }
+                },
+                // ISO with T: "2024-12-25T14:30:45"
+                {
+                    name: 'ISO with T',
+                    regex: /^(\d{4})-(\d{1,2})-(\d{1,2})T(\d{1,2}):(\d{2}):(\d{2})/,
+                    parser: (match) => {
+                        let [, year, month, day, hour, minute, second] = match;
+                        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute), parseInt(second));
+                    }
+                },
+                // Date only DD/MM/YYYY
+                {
+                    name: 'DD/MM/YYYY',
+                    regex: /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
+                    parser: (match) => {
+                        let [, day, month, year] = match;
+                        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                    }
+                },
+                // Date only MM/DD/YYYY
+                {
+                    name: 'MM/DD/YYYY',
+                    regex: /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
+                    parser: (match) => {
+                        let [, month, day, year] = match;
+                        // Try both interpretations and pick the most reasonable one
+                        const date1 = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                        const date2 = new Date(parseInt(year), parseInt(day) - 1, parseInt(month));
+                        
+                        // If both are valid, prefer MM/DD format for US locale
+                        if (!isNaN(date1.getTime()) && !isNaN(date2.getTime())) {
+                            return date1; // MM/DD interpretation
+                        }
+                        return !isNaN(date1.getTime()) ? date1 : date2;
+                    }
+                },
+                // Indonesian format: "25 Desember 2024"
+                {
+                    name: 'Indonesian Date',
+                    regex: /^(\d{1,2})\s+(Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember)\s+(\d{4})$/i,
+                    parser: (match) => {
+                        const months = {
+                            'januari': 0, 'februari': 1, 'maret': 2, 'april': 3, 'mei': 4, 'juni': 5,
+                            'juli': 6, 'agustus': 7, 'september': 8, 'oktober': 9, 'november': 10, 'desember': 11
+                        };
+                        let [, day, month, year] = match;
+                        const monthIndex = months[month.toLowerCase()];
+                        return new Date(parseInt(year), monthIndex, parseInt(day));
+                    }
+                }
+            ];
+            
+            // Try each format
+            for (let format of formats) {
+                const match = timestamp.match(format.regex);
+                if (match) {
+                    try {
+                        const date = format.parser(match);
+                        if (!isNaN(date.getTime())) {
+                            console.log(`Successfully parsed "${timestamp}" using format: ${format.name} -> ${date}`);
+                            return date;
+                        }
+                    } catch (error) {
+                        console.log(`Format ${format.name} failed:`, error.message);
+                        continue;
+                    }
+                }
+            }
+            
+            // Fallback: try native Date parsing
+            try {
+                const date = new Date(timestamp);
+                if (!isNaN(date.getTime())) {
+                    console.log(`Fallback parsing successful for "${timestamp}" -> ${date}`);
+                    return date;
+                }
+            } catch (error) {
+                console.log('Native Date parsing failed:', error.message);
+            }
+            
+            console.warn('❌ Could not parse timestamp:', originalTimestamp);
+            return null;
+        }
+
+        // Enhanced timestamp column detection with smart analysis
+        function findTimestampColumn(headers) {
+            console.log('🔍 Analyzing headers for timestamp column:', headers);
+            
+            const timestampKeywords = [
+                // Primary keywords (most likely)
+                'timestamp', 'waktu', 'tanggal', 'date', 'time',
+                // Secondary keywords
+                'submitted', 'dibuat', 'created', 'waktu pengisian', 'tanggal pengisian',
+                'response time', 'submission time', 'form submitted',
+                // Google Forms specific
+                'waktu respons', 'tanggal respons', 'waktu kirim', 'tanggal kirim'
+            ];
+            
+            // Strategy 1: Exact matches (highest priority)
+            console.log('🎯 Strategy 1: Looking for exact matches...');
+            for (let keyword of timestampKeywords) {
+                const found = headers.find(header => 
+                    header.toLowerCase().trim() === keyword.toLowerCase()
+                );
+                if (found) {
+                    console.log('✅ Found timestamp column (exact match):', found);
+                    return found;
+                }
+            }
+            
+            // Strategy 2: Partial matches (medium priority)
+            console.log('🎯 Strategy 2: Looking for partial matches...');
+            for (let keyword of timestampKeywords) {
+                const found = headers.find(header => 
+                    header.toLowerCase().includes(keyword.toLowerCase())
+                );
+                if (found) {
+                    console.log('✅ Found timestamp column (partial match):', found);
+                    return found;
+                }
+            }
+            
+            // Strategy 3: Analyze first few data rows to identify timestamp-like content
+            console.log('🎯 Strategy 3: Analyzing data content for timestamp patterns...');
+            if (surveyData && surveyData.length > 0) {
+                for (let header of headers) {
+                    let timestampLikeCount = 0;
+                    const sampleSize = Math.min(5, surveyData.length);
+                    
+                    for (let i = 0; i < sampleSize; i++) {
+                        const value = surveyData[i][header];
+                        if (value && typeof value === 'string') {
+                            // Check if value looks like a timestamp
+                            const timestampPatterns = [
+                                /\d{1,2}\/\d{1,2}\/\d{4}/, // Date patterns
+                                /\d{4}-\d{1,2}-\d{1,2}/, // ISO date patterns
+                                /\d{1,2}:\d{2}:\d{2}/, // Time patterns
+                                /\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}/, // DateTime patterns
+                                /(AM|PM)/i, // AM/PM indicators
+                                /(Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember)/i // Indonesian months
+                            ];
+                            
+                            if (timestampPatterns.some(pattern => pattern.test(value))) {
+                                timestampLikeCount++;
+                            }
+                        }
+                    }
+                    
+                    // If most samples look like timestamps, this is likely the timestamp column
+                    if (timestampLikeCount >= Math.ceil(sampleSize * 0.6)) {
+                        console.log(`✅ Found timestamp column by content analysis: ${header} (${timestampLikeCount}/${sampleSize} samples match)`);
+                        return header;
+                    }
+                }
+            }
+            
+            // Strategy 4: Use first column as fallback (lowest priority)
+            console.log('🎯 Strategy 4: Using first column as fallback...');
+            if (headers.length > 0) {
+                console.log('⚠️ Using first column as timestamp (fallback):', headers[0]);
+                return headers[0];
+            }
+            
+            console.error('❌ No timestamp column could be identified');
+            return null;
+        }
+
+        // Enhanced filter functions with comprehensive debugging and error handling
+        function applyFilter() {
+            const filterValue = document.getElementById('periodFilter').value;
+            const customDateRange = document.getElementById('customDateRange');
+            const filterStatus = document.getElementById('filterStatus');
+            
+            console.log('🔄 Starting filter process. Filter value:', filterValue);
+            console.log('📊 Total survey data available:', surveyData.length, 'records');
+            
+            // Handle custom date range visibility
+            if (filterValue === 'custom') {
+                customDateRange.classList.remove('hidden');
+                filterStatus.textContent = 'Pilih rentang tanggal kustom';
+                console.log('📅 Custom date range selector shown');
+                return;
+            } else {
+                customDateRange.classList.add('hidden');
+            }
+            
+            let filtered = [...surveyData];
+            
+            // Show all data case
+            if (filterValue === 'all') {
+                console.log('✅ Showing all data:', filtered.length, 'records');
+                filterStatus.textContent = `Menampilkan semua data (${filtered.length} record)`;
+                filteredData = filtered;
+                updateDashboard(currentHeaders, filtered);
+                return;
+            }
+            
+            // Find and validate timestamp column
+            const timestampColumn = findTimestampColumn(currentHeaders);
+            if (!timestampColumn) {
+                console.error('❌ No timestamp column found, showing all data');
+                alert('⚠️ Kolom timestamp tidak ditemukan dalam data. Menampilkan semua data.\n\nTip: Pastikan spreadsheet memiliki kolom dengan nama yang mengandung kata "timestamp", "waktu", atau "tanggal".');
+                filterStatus.textContent = `Menampilkan semua data (${filtered.length} record) - Kolom timestamp tidak ditemukan`;
+                filteredData = filtered;
+                updateDashboard(currentHeaders, filtered);
+                return;
+            }
+            
+            console.log('✅ Using timestamp column:', timestampColumn);
+            
+            // Analyze sample timestamps for debugging
+            const sampleTimestamps = surveyData.slice(0, Math.min(5, surveyData.length)).map(row => ({
+                raw: row[timestampColumn],
+                parsed: parseTimestamp(row[timestampColumn])
+            }));
+            console.log('📋 Sample timestamps analysis:', sampleTimestamps);
+            
+            // Calculate filter dates with precise timezone handling
+            const now = new Date();
+            
+            let filterStartDate, filterEndDate;
+            
+            switch(filterValue) {
+                case 'today':
+                    // FIXED: Create today boundaries using simple date comparison
+                    const today = new Date();
+                    const todayDateString = today.getFullYear() + '-' + 
+                                          String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                                          String(today.getDate()).padStart(2, '0');
+                    
+                    console.log('📅 Today Filter - FIXED VERSION:');
+                    console.log('   • Today date string:', todayDateString);
+                    console.log('   • Current time:', now.toLocaleString('id-ID'));
+                    
+                    // Filter by comparing date strings instead of precise timestamps
+                    filtered = surveyData.filter((row, index) => {
+                        const timestamp = row[timestampColumn];
+                        const date = parseTimestamp(timestamp);
+                        
+                        if (!date) {
+                            console.log(`⚠️ Row ${index + 1}: Could not parse timestamp "${timestamp}"`);
+                            return false;
+                        }
+                        
+                        // Compare just the date part (YYYY-MM-DD)
+                        const recordDateString = date.getFullYear() + '-' + 
+                                               String(date.getMonth() + 1).padStart(2, '0') + '-' + 
+                                               String(date.getDate()).padStart(2, '0');
+                        
+                        const isToday = recordDateString === todayDateString;
+                        
+                        if (index < 5) { // Debug first 5 records
+                            console.log(`📋 Row ${index + 1}:`);
+                            console.log(`   • Original: "${timestamp}"`);
+                            console.log(`   • Parsed: ${date.toLocaleString('id-ID')}`);
+                            console.log(`   • Record date: ${recordDateString}`);
+                            console.log(`   • Today date: ${todayDateString}`);
+                            console.log(`   • Match: ${isToday ? '✅ YES' : '❌ NO'}`);
+                        }
+                        
+                        return isToday;
+                    });
+                    
+                    console.log(`✅ Today filter completed: ${filtered.length} records found`);
+                    break;
+                    
+                case 'week':
+                    // 7 days ago from start of today to end of today
+                    const weekAgo = new Date();
+                    weekAgo.setDate(weekAgo.getDate() - 6);
+                    filterStartDate = new Date(weekAgo.getFullYear(), weekAgo.getMonth(), weekAgo.getDate(), 0, 0, 0, 0);
+                    filterEndDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+                    
+                    filtered = surveyData.filter(row => {
+                        const timestamp = row[timestampColumn];
+                        const date = parseTimestamp(timestamp);
+                        return date && date >= filterStartDate && date <= filterEndDate;
+                    });
+                    
+                    console.log('📅 Week filter (7 days):', filterStartDate.toLocaleString('id-ID'), 'to', filterEndDate.toLocaleString('id-ID'));
+                    break;
+                    
+                case 'month':
+                    // 30 days ago from start of that day to end of today
+                    const monthAgo = new Date();
+                    monthAgo.setDate(monthAgo.getDate() - 29);
+                    filterStartDate = new Date(monthAgo.getFullYear(), monthAgo.getMonth(), monthAgo.getDate(), 0, 0, 0, 0);
+                    filterEndDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+                    
+                    filtered = surveyData.filter(row => {
+                        const timestamp = row[timestampColumn];
+                        const date = parseTimestamp(timestamp);
+                        return date && date >= filterStartDate && date <= filterEndDate;
+                    });
+                    
+                    console.log('📅 Month filter (30 days):', filterStartDate.toLocaleString('id-ID'), 'to', filterEndDate.toLocaleString('id-ID'));
+                    break;
+            }
+            
+            // Update filter status and handle results
+            const periodNames = {
+                'today': 'hari ini',
+                'week': '7 hari terakhir', 
+                'month': '30 hari terakhir'
+            };
+            
+            console.log('📊 FILTER RESULTS:');
+            console.log(`   • Filter type: ${filterValue.toUpperCase()}`);
+            console.log(`   • Total records: ${surveyData.length}`);
+            console.log(`   • Filtered records: ${filtered.length}`);
+            
+            if (filtered.length === 0) {
+                const message = `📊 Tidak ada data untuk periode ${periodNames[filterValue]}.\n\n` +
+                              `Detail:\n` +
+                              `• Total data tersedia: ${surveyData.length} record\n` +
+                              `• Data yang cocok dengan filter: ${filtered.length} record\n\n` +
+                              `Menampilkan semua data sebagai gantinya.`;
+                
+                alert(message);
+                console.log('⚠️ No matching records found, showing all data');
+                filtered = surveyData;
+                filterStatus.textContent = `Tidak ada data ${periodNames[filterValue]} - Menampilkan semua data (${filtered.length} record)`;
+            } else {
+                console.log(`✅ Filter applied successfully: ${filtered.length}/${surveyData.length} records shown`);
+                filterStatus.textContent = `Menampilkan data ${periodNames[filterValue]} (${filtered.length} dari ${surveyData.length} record)`;
+            }
+            
+            filteredData = filtered;
+            updateDashboard(currentHeaders, filtered);
+        }
+        
+        function applyCustomFilter() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const filterStatus = document.getElementById('filterStatus');
+            
+            console.log('🔄 Starting custom filter process');
+            console.log('📅 Date range input:', startDate, 'to', endDate);
+            
+            // Validate input dates
+            if (!startDate || !endDate) {
+                alert('⚠️ Silakan pilih tanggal mulai dan tanggal akhir untuk filter periode kustom.');
+                return;
+            }
+            
+            if (startDate > endDate) {
+                alert('⚠️ Tanggal mulai tidak boleh lebih besar dari tanggal akhir.');
+                return;
+            }
+            
+            // Find and validate timestamp column
+            const timestampColumn = findTimestampColumn(currentHeaders);
+            if (!timestampColumn) {
+                console.error('❌ No timestamp column found for custom filter');
+                alert('⚠️ Kolom timestamp tidak ditemukan dalam data. Menampilkan semua data.\n\nTip: Pastikan spreadsheet memiliki kolom dengan nama yang mengandung kata "timestamp", "waktu", atau "tanggal".');
+                filterStatus.textContent = `Menampilkan semua data (${surveyData.length} record) - Kolom timestamp tidak ditemukan`;
+                filteredData = surveyData;
+                updateDashboard(currentHeaders, surveyData);
+                return;
+            }
+            
+            console.log('✅ Using timestamp column for custom filter:', timestampColumn);
+            
+            // Create date range (include entire end date)
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999); // Include the entire end date
+            
+            console.log('📅 Parsed date range:', start, 'to', end);
+            console.log('📊 Total survey data available:', surveyData.length, 'records');
+            
+            // Apply custom filter with detailed tracking
+            let successfulParses = 0;
+            let failedParses = 0;
+            let matchingRecords = 0;
+            
+            const filtered = surveyData.filter((row, index) => {
+                const timestamp = row[timestampColumn];
+                const date = parseTimestamp(timestamp);
+                
+                if (!date) {
+                    failedParses++;
+                    if (failedParses <= 3) { // Only log first few failures
+                        console.log(`⚠️ Row ${index + 1}: Could not parse timestamp "${timestamp}"`);
+                    }
+                    return false;
+                }
+                
+                successfulParses++;
+                
+                const result = date >= start && date <= end;
+                
+                if (result) {
+                    matchingRecords++;
+                    if (matchingRecords <= 3) { // Log first few matches
+                        console.log(`✅ Row ${index + 1}: "${timestamp}" -> ${date} (MATCH)`);
+                    }
+                }
+                
+                return result;
+            });
+            
+            // Comprehensive results logging
+            console.log('📊 Custom Filter Results Summary:');
+            console.log(`   • Date range: ${startDate} to ${endDate}`);
+            console.log(`   • Total records processed: ${surveyData.length}`);
+            console.log(`   • Successfully parsed timestamps: ${successfulParses}`);
+            console.log(`   • Failed to parse timestamps: ${failedParses}`);
+            console.log(`   • Records matching date range: ${matchingRecords}`);
+            console.log(`   • Filter success rate: ${((successfulParses / surveyData.length) * 100).toFixed(1)}%`);
+            
+            // Handle results
+            if (filtered.length === 0) {
+                const message = `📊 Tidak ada data untuk periode ${startDate} sampai ${endDate}.\n\n` +
+                              `Detail:\n` +
+                              `• Total data: ${surveyData.length} record\n` +
+                              `• Timestamp berhasil diparse: ${successfulParses}\n` +
+                              `• Data dalam rentang tanggal: ${matchingRecords}\n\n` +
+                              `Menampilkan semua data sebagai gantinya.`;
+                
+                alert(message);
+                console.log('⚠️ No matching records found for custom date range, showing all data');
+                filterStatus.textContent = `Tidak ada data ${startDate} - ${endDate} - Menampilkan semua data (${surveyData.length} record)`;
+                filteredData = surveyData;
+                updateDashboard(currentHeaders, surveyData);
+            } else {
+                console.log(`✅ Custom filter applied successfully: ${filtered.length}/${surveyData.length} records shown`);
+                filterStatus.textContent = `Menampilkan data ${startDate} - ${endDate} (${filtered.length} dari ${surveyData.length} record)`;
+                filteredData = filtered;
+                updateDashboard(currentHeaders, filtered);
+            }
+        }
+
+
+
+        // Refresh data function
+        function refreshData() {
+            loadData();
+        }
+
+        // Upload functions with password protection
+        function showUploadModal() {
+            // Show password modal
+            document.getElementById('uploadModal').classList.remove('hidden');
+            document.getElementById('uploadPassword').focus();
+            
+            // Clear previous error
+            document.getElementById('uploadPasswordError').classList.add('hidden');
+            document.getElementById('uploadPassword').value = '';
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').classList.add('hidden');
+            document.getElementById('uploadPassword').value = '';
+            document.getElementById('uploadPasswordError').classList.add('hidden');
+        }
+
+        function verifyAndUpload() {
+            const password = document.getElementById('uploadPassword').value;
+            const correctPassword = 'DUKCAPILOKE25';
+            const errorDiv = document.getElementById('uploadPasswordError');
+            
+            // Verify password
+            if (password !== correctPassword) {
+                errorDiv.classList.remove('hidden');
+                document.getElementById('uploadPassword').focus();
+                document.getElementById('uploadPassword').select();
+                return;
+            }
+            
+            // Password correct, proceed to spreadsheet
+            errorDiv.classList.add('hidden');
+            
+            // Show success message
+            const successMessage = `✅ PASSWORD BENAR!\n\n` +
+                                  `🔓 Akses berhasil diverifikasi.\n` +
+                                  `📊 Anda akan diarahkan ke Google Spreadsheet.\n\n` +
+                                  `Di spreadsheet, Anda dapat:\n` +
+                                  `• 📤 Mengunggah file data\n` +
+                                  `• ✏️ Mengedit data survei\n` +
+                                  `• 👀 Melihat semua respons\n` +
+                                  `• 📋 Mengelola data survei\n\n` +
+                                  `Klik OK untuk melanjutkan...`;
+            
+            alert(successMessage);
+            
+            // Open the spreadsheet in a new tab
+            window.open('https://docs.google.com/spreadsheets/d/1xMhuQ3rND7kpVBuRwnx9H-tlPc--u9rKEARcCVvT-g0/edit?usp=sharing', '_blank');
+            
+            // Close modal
+            closeUploadModal();
+            
+            // Show additional instructions after a delay
+            setTimeout(() => {
+                alert(`📋 PANDUAN PENGGUNAAN SPREADSHEET:\n\n` +
+                      `🔹 MENGUNGGAH FILE:\n` +
+                      `   • Klik File → Import\n` +
+                      `   • Pilih file yang akan diunggah\n` +
+                      `   • Pilih opsi import yang sesuai\n\n` +
+                      `🔹 MENGEDIT DATA:\n` +
+                      `   • Klik sel yang ingin diedit\n` +
+                      `   • Ketik data baru\n` +
+                      `   • Tekan Enter untuk menyimpan\n\n` +
+                      `🔹 MENAMBAH DATA:\n` +
+                      `   • Scroll ke baris kosong terakhir\n` +
+                      `   • Isi data sesuai kolom yang ada\n\n` +
+                      `✅ Semua perubahan tersimpan otomatis!`);
+            }, 2000);
+        }
+
+        // Close modal when clicking outside
+        document.addEventListener('click', function(event) {
+            const uploadModal = document.getElementById('uploadModal');
+            if (event.target === uploadModal) {
+                closeUploadModal();
+            }
+        });
+
+        // Handle escape key to close modal
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const uploadModal = document.getElementById('uploadModal');
+                if (!uploadModal.classList.contains('hidden')) {
+                    closeUploadModal();
+                }
+            }
+        });
+
+
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+            
+            // Auto-refresh every 5 minutes
+            setInterval(loadData, 300000);
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'980f0fc5e3d6f91c',t:'MTc1ODE3OTgyNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
